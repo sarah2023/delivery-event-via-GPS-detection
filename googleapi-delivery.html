@@ -1,0 +1,119 @@
+<style>
+or 0.3s ease;
+}
+
+button.delivery-estimate-btn:hover {
+  background-color: #1565c0;#estimate-result {
+  font-size: 20px;
+  font-weight: bold;
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-top: 20px;
+  display: inline-block;
+  font-family: 'Arial', sans-serif;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+button.delivery-estimate-btn {
+  padding: 10px 16px;
+  background-color: #1e88e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-col
+}
+
+</style>
+
+
+<div>
+  <h3>Estimated Delivery Time:</h3>
+  <button onclick="getLocationAndEstimate()">Get Estimate Using My Location</button>
+  <div id="estimate-result" style="margin-top: 20px; font-weight: bold;"></div>
+</div>
+
+<script>
+  const apiKey = "5b3ce3597851110001cf624832eff4c1c6334932a49bedd7880ca47d"; // Replace this with your ORS API key
+  const storeCoords = [73.0738220973314, 33.64265908747958 ]; // [longitude, latitude] of your store (example: Bangalore)
+
+  function getLocationAndEstimate() {
+    const resultDiv = document.getElementById("estimate-result");
+    resultDiv.innerText = "Getting your location...";
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(position => {
+        const userCoords = [
+          position.coords.longitude,
+          position.coords.latitude
+        ];
+        resultDiv.innerText = "Calculating delivery time...";
+        calculateRoute(userCoords);
+      }, () => {
+        resultDiv.innerText = "Failed to access location.";
+      });
+    } else {
+      resultDiv.innerText = "Geolocation is not supported by your browser.";
+    }
+  }
+
+  function calculateRoute(userCoords) {
+    const url = "https://api.openrouteservice.org/v2/directions/driving-car";
+    const requestData = {
+      coordinates: [userCoords, storeCoords]
+    };
+
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.routes || !data.routes[0]) {
+        document.getElementById("estimate-result").innerText = "Could not calculate route.";
+        return;
+      }
+
+      const distanceInMeters = data.routes[0].summary.distance;
+      const distanceInKm = distanceInMeters / 1000;
+      const estimatedMinutes = Math.ceil(distanceInKm * 15);
+
+      const now = new Date();
+      const deliveryTime = new Date(now.getTime() + estimatedMinutes * 60000);
+      startCountdown(deliveryTime);
+    })
+    .catch(error => {
+      console.error("ORS error:", error);
+      document.getElementById("estimate-result").innerText = "Error fetching delivery time.";
+    });
+  }
+
+  function startCountdown(deliveryTime) {
+    const resultDiv = document.getElementById("estimate-result");
+
+    function updateTimer() {
+      const now = new Date().getTime();
+      const timeLeft = deliveryTime.getTime() - now;
+
+      if (timeLeft <= 0) {
+        resultDiv.innerText = "Your delivery should have arrived!";
+        clearInterval(timer);
+        return;
+      }
+
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+      resultDiv.innerText = `Estimated Delivery In: ${minutes}m ${seconds}s`;
+    }
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+  }
+</script>
